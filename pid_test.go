@@ -1,11 +1,10 @@
-package tinyfile_test
+package tinyfile
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
-
-	"github.com/nc30/tinyfile"
 )
 
 func TestPidSet(t *testing.T) {
@@ -14,10 +13,10 @@ func TestPidSet(t *testing.T) {
 		panic(err)
 	}
 	defer os.RemoveAll(tmp)
-	defer tinyfile.PidClean()
+	defer PidClean()
 
-	filename := tmp + "/test.pid"
-	err = tinyfile.PidSet(filename)
+	filename := filepath.Join(tmp, "test.pid")
+	err = PidSet(filename)
 	if err != nil {
 		t.Error(err)
 	}
@@ -31,8 +30,8 @@ func TestPidSet(t *testing.T) {
 		t.Errorf("pid is not equal %s != %d", string(b), os.Getpid())
 	}
 
-	err = tinyfile.PidSet(filename)
-	if err != tinyfile.ErrAleadySetPid {
+	err = PidSet(filename)
+	if err != ErrAleadySetPid {
 		t.Errorf("invalid error")
 	}
 }
@@ -44,13 +43,13 @@ func TestPidSetAleadyRunning(t *testing.T) {
 		panic(err)
 	}
 	defer os.RemoveAll(tmp)
-	defer tinyfile.PidClean()
+	defer PidClean()
 
-	filename := tmp + "/test.pid"
+	filename := filepath.Join(tmp, "test.pid")
 	os.WriteFile(filename, []byte(""), 0664)
 
-	err = tinyfile.PidSet(filename)
-	if err != tinyfile.ErrAnotherProcessRunning {
+	err = PidSet(filename)
+	if err != ErrAnotherProcessRunning {
 		t.Errorf("invalid error of %v", err)
 	}
 }
@@ -61,24 +60,24 @@ func TestPidSetTwiceSet(t *testing.T) {
 		panic(err)
 	}
 	defer os.RemoveAll(tmp)
-	defer tinyfile.PidClean()
+	defer PidClean()
 
-	filename := tmp + "/test.pid"
-	filename2 := tmp + "/test2.pid"
+	filename := filepath.Join(tmp, "test.pid")
+	filename2 := filepath.Join(tmp, "test2.pid")
 
-	err = tinyfile.PidSet(filename)
+	err = PidSet(filename)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = tinyfile.PidSet(filename2)
-	if err != tinyfile.ErrAleadySetPid {
+	err = PidSet(filename2)
+	if err != ErrAleadySetPid {
 		t.Errorf("invalid error of %s", err)
 	}
 }
 
 func TestPidClean(t *testing.T) {
-	err := tinyfile.PidClean()
+	err := PidClean()
 	if err != nil {
 		t.Error(err)
 	}
@@ -89,8 +88,8 @@ func TestPidClean(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	filename := tmp + "/test.pid"
-	err = tinyfile.PidSet(filename)
+	filename := filepath.Join(tmp, "test.pid")
+	err = PidSet(filename)
 	if err != nil {
 		t.Error(err)
 	}
@@ -100,7 +99,7 @@ func TestPidClean(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = tinyfile.PidClean()
+	err = PidClean()
 	if err != nil {
 		t.Error(err)
 	}
@@ -118,13 +117,13 @@ func TestFileExist(t *testing.T) {
 	}
 	defer os.Remove(f.Name())
 
-	if !tinyfile.FileExist(f.Name()) {
+	if !FileExist(f.Name()) {
 		t.Errorf("file is exist")
 	}
 
 	os.Remove(f.Name())
 
-	if tinyfile.FileExist(f.Name()) {
+	if FileExist(f.Name()) {
 		t.Errorf("file is not exist")
 	}
 }
@@ -136,7 +135,7 @@ func TestFileExistDirectory(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	if tinyfile.FileExist(tmp) {
+	if FileExist(tmp) {
 		t.Errorf("this is directory")
 	}
 }
