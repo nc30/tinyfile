@@ -76,18 +76,22 @@ func NewRepo() *SyncRepo {
 	}
 }
 
+// create sync object
 func NewSync(path string) (*Sync, error) {
 	return DefaultRepo.New(path)
 }
 
+// watch SIGHUP
 func Watch(ctx context.Context) {
 	DefaultRepo.WatchWithSignal(ctx, syscall.SIGHUP)
 }
 
+// watch signal
 func WatchWithSignal(ctx context.Context, sig ...os.Signal) {
 	DefaultRepo.WatchWithSignal(ctx, sig...)
 }
 
+// Close is close all files
 func Close() {
 	DefaultRepo.Close()
 }
@@ -97,6 +101,7 @@ type SyncRepo struct {
 	files []*Sync
 }
 
+// create SyncRepository
 func (sr *SyncRepo) New(path string) (*Sync, error) {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
@@ -115,10 +120,12 @@ func (sr *SyncRepo) New(path string) (*Sync, error) {
 	return snk, nil
 }
 
+// Watch start SIGHUP watchng process
 func (sr *SyncRepo) Watch(ctx context.Context) {
 	sr.WatchWithSignal(ctx, syscall.SIGHUP)
 }
 
+// WatchWithSignal start signal watching function
 func (sr *SyncRepo) WatchWithSignal(ctx context.Context, sig ...os.Signal) {
 	go func() {
 		sigchan := make(chan os.Signal, 1)
@@ -139,6 +146,7 @@ func (sr *SyncRepo) WatchWithSignal(ctx context.Context, sig ...os.Signal) {
 	}()
 }
 
+// ReOpen refresh i-node of repository files
 func (sr *SyncRepo) ReOpen() {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
@@ -151,6 +159,7 @@ func (sr *SyncRepo) ReOpen() {
 	}
 }
 
+// Close is close all repository objects
 func (sr *SyncRepo) Close() {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
