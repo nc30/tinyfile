@@ -1,3 +1,6 @@
+[![GoTest](https://github.com/nc30/tinyfile/actions/workflows/gotest.yml/badge.svg)](https://github.com/nc30/tinyfile/actions/workflows/gotest.yml)
+
+
 tinyfile is tiny service library
 
 ## install
