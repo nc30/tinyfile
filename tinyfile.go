@@ -10,6 +10,16 @@ import (
 	"syscall"
 )
 
+type OpenFileFunc func(string, int, os.FileMode) (*os.File, error)
+
+var OpenFile OpenFileFunc = os.OpenFile
+
+var (
+	FileFlg              = os.O_CREATE | os.O_WRONLY | os.O_APPEND
+	FilePerm os.FileMode = 0664
+)
+
+// Sync is Reopenable io.ReadCloser
 type Sync struct {
 	mu sync.Mutex
 	fp *os.File
@@ -24,7 +34,7 @@ func (s *Sync) ReOpen() error {
 	defer s.mu.Unlock()
 
 	s.fp.Close()
-	file, err := os.OpenFile(s.fp.Name(), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0664)
+	file, err := OpenFile(s.fp.Name(), FileFlg, FilePerm)
 	if err != nil {
 		return err
 	}
@@ -71,7 +81,11 @@ func NewSync(path string) (*Sync, error) {
 }
 
 func Watch(ctx context.Context) {
-	DefaultRepo.Watch(ctx)
+	DefaultRepo.WatchWithSignal(ctx, syscall.SIGHUP)
+}
+
+func WatchWithSignal(ctx context.Context, sig ...os.Signal) {
+	DefaultRepo.WatchWithSignal(ctx, sig...)
 }
 
 func Close() {
@@ -87,7 +101,7 @@ func (sr *SyncRepo) New(path string) (*Sync, error) {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
 
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0664)
+	file, err := OpenFile(path, FileFlg, FilePerm)
 	if err != nil {
 		return nil, err
 	}
@@ -102,13 +116,20 @@ func (sr *SyncRepo) New(path string) (*Sync, error) {
 }
 
 func (sr *SyncRepo) Watch(ctx context.Context) {
+	sr.WatchWithSignal(ctx, syscall.SIGHUP)
+}
+
+func (sr *SyncRepo) WatchWithSignal(ctx context.Context, sig ...os.Signal) {
 	go func() {
-		sig := make(chan os.Signal, 1)
-		signal.Notify(sig, syscall.SIGHUP)
+		sigchan := make(chan os.Signal, 1)
+		defer func() {
+			close(sigchan)
+		}()
+		signal.Notify(sigchan, sig...)
 
 		for {
 			select {
-			case <-sig:
+			case <-sigchan:
 				sr.ReOpen()
 			case <-ctx.Done():
 				goto end
