@@ -3,7 +3,6 @@ package tinyfile
 import (
 	"context"
 	"errors"
-	"log"
 	"os"
 	"os/signal"
 	"sync"
@@ -15,17 +14,17 @@ type OpenFileFunc func(string, int, os.FileMode) (*os.File, error)
 var OpenFile OpenFileFunc = os.OpenFile
 
 var (
-	FileFlg              = os.O_CREATE | os.O_WRONLY | os.O_APPEND
-	FilePerm os.FileMode = 0664
+	FileFlg                    = os.O_CREATE | os.O_WRONLY | os.O_APPEND
+	FilePermission os.FileMode = 0664
 )
 
-// Sync is Reopenable io.ReadCloser
-type Sync struct {
+// TinyWriter is zapcore.WriteSyncer
+type TinyWriter struct {
 	mu sync.Mutex
 	fp *os.File
 }
 
-func (s *Sync) ReOpen() error {
+func (s *TinyWriter) ReOpen() error {
 	if s.fp == nil {
 		return nil
 	}
@@ -34,7 +33,7 @@ func (s *Sync) ReOpen() error {
 	defer s.mu.Unlock()
 
 	s.fp.Close()
-	file, err := OpenFile(s.fp.Name(), FileFlg, FilePerm)
+	file, err := OpenFile(s.fp.Name(), FileFlg, FilePermission)
 	if err != nil {
 		return err
 	}
@@ -43,7 +42,7 @@ func (s *Sync) ReOpen() error {
 	return nil
 }
 
-func (s *Sync) Close() error {
+func (s *TinyWriter) Close() error {
 	if s.fp == nil {
 		return nil
 	}
@@ -54,64 +53,75 @@ func (s *Sync) Close() error {
 	return s.fp.Close()
 }
 
-func (s *Sync) Write(p []byte) (n int, err error) {
+// write to file
+func (s *TinyWriter) Write(p []byte) (n int, err error) {
 	if s.fp == nil {
 		return 0, errors.New("file not found")
 	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	return s.fp.Write(p)
 }
 
-func (s *Sync) Sync() error {
-	log.Println("synced")
-	return nil
+func (s *TinyWriter) Sync() error {
+	if s.fp == nil {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.fp.Sync()
 }
 
-var DefaultRepo = NewRepo()
+var defaultRepo = NewRepo()
 
 func NewRepo() *SyncRepo {
 	return &SyncRepo{
-		files: []*Sync{},
+		files: []*TinyWriter{},
 	}
 }
 
 // create sync object
-func NewSync(path string) (*Sync, error) {
-	return DefaultRepo.New(path)
+func NewSync(path string) (*TinyWriter, error) {
+	return defaultRepo.New(path)
 }
 
 // watch SIGHUP
 func Watch(ctx context.Context) {
-	DefaultRepo.WatchWithSignal(ctx, syscall.SIGHUP)
+	defaultRepo.WatchWithSignal(ctx, syscall.SIGHUP)
 }
 
 // watch signal
 func WatchWithSignal(ctx context.Context, sig ...os.Signal) {
-	DefaultRepo.WatchWithSignal(ctx, sig...)
+	defaultRepo.WatchWithSignal(ctx, sig...)
 }
 
 // Close is close all files
 func Close() {
-	DefaultRepo.Close()
+	defaultRepo.Close()
 }
 
+// SyncRepo is TinyFile struct controller.
+// that wach some signal and ma
 type SyncRepo struct {
 	mu    sync.Mutex
-	files []*Sync
+	files []*TinyWriter
 }
 
 // create SyncRepository
-func (sr *SyncRepo) New(path string) (*Sync, error) {
+func (sr *SyncRepo) New(path string) (*TinyWriter, error) {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
 
-	file, err := OpenFile(path, FileFlg, FilePerm)
+	file, err := OpenFile(path, FileFlg, FilePermission)
 	if err != nil {
 		return nil, err
 	}
 
-	snk := &Sync{
+	snk := &TinyWriter{
 		fp: file,
 	}
 
@@ -146,20 +156,28 @@ func (sr *SyncRepo) WatchWithSignal(ctx context.Context, sig ...os.Signal) {
 	}()
 }
 
-// ReOpen refresh i-node of repository files
-func (sr *SyncRepo) ReOpen() {
+// ReOpen all management under TinyWriter
+func (sr *SyncRepo) ReOpen() []error {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
+
+	ers := []error{}
 
 	for _, snk := range sr.files {
 		err := snk.ReOpen()
 		if err != nil {
-			log.Println(err)
+			ers = append(ers, err)
 		}
 	}
+
+	if len(ers) == 0 {
+		return nil
+	}
+
+	return ers
 }
 
-// Close is close all repository objects
+// Close is close all management under TinyWriter
 func (sr *SyncRepo) Close() {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()

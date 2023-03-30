@@ -16,8 +16,10 @@ var (
 
 var pidFilepath string = ""
 
-// PidSet create pid file to argument path
-// require run PidClean() on process end
+// PidSet create pid file.
+//
+// require run PidClean() on process end.
+// this function work only once.
 func PidSet(path string) error {
 	if pidFilepath != "" {
 		return ErrAleadySetPid

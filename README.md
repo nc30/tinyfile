@@ -48,6 +48,7 @@ func main(){
 
 create `io.WriteCloser` object at reopen of SIGHUP
 
+
 ```go
 package main
 
