@@ -1,4 +1,4 @@
-[![GoTest](https://github.com/nc30/tinyfile/actions/workflows/gotest.yml/badge.svg)](https://github.com/nc30/tinyfile/actions/workflows/gotest.yml) [![Go Reference](https://pkg.go.dev/badge/github.com/nc30/tinyfile.svg)](https://pkg.go.dev/github.com/nc30/tinyfile)
+[![Go Reference](https://pkg.go.dev/badge/github.com/nc30/tinyfile.svg)](https://pkg.go.dev/github.com/nc30/tinyfile) [![GoTest](https://github.com/nc30/tinyfile/actions/workflows/gotest.yml/badge.svg)](https://github.com/nc30/tinyfile/actions/workflows/gotest.yml)
 
 tinyfile is tiny service library
 
