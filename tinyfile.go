@@ -85,7 +85,7 @@ func NewRepo() *SyncRepo {
 }
 
 // create sync object
-func NewSync(path string) (*TinyWriter, error) {
+func NewWriter(path string) (*TinyWriter, error) {
 	return defaultRepo.New(path)
 }
 
@@ -107,8 +107,9 @@ func Close() {
 // SyncRepo is TinyFile struct controller.
 // that wach some signal and ma
 type SyncRepo struct {
-	mu    sync.Mutex
-	files []*TinyWriter
+	mu     sync.Mutex
+	files  []*TinyWriter
+	cancel func()
 }
 
 // create SyncRepository
@@ -137,6 +138,8 @@ func (sr *SyncRepo) Watch(ctx context.Context) {
 
 // WatchWithSignal start signal watching function
 func (sr *SyncRepo) WatchWithSignal(ctx context.Context, sig ...os.Signal) {
+	ctx, sr.cancel = context.WithCancel(ctx)
+
 	go func() {
 		sigchan := make(chan os.Signal, 1)
 		defer func() {
@@ -144,15 +147,15 @@ func (sr *SyncRepo) WatchWithSignal(ctx context.Context, sig ...os.Signal) {
 		}()
 		signal.Notify(sigchan, sig...)
 
+	LOOP:
 		for {
 			select {
 			case <-sigchan:
 				sr.ReOpen()
 			case <-ctx.Done():
-				goto end
+				break LOOP
 			}
 		}
-	end:
 	}()
 }
 
@@ -181,6 +184,11 @@ func (sr *SyncRepo) ReOpen() []error {
 func (sr *SyncRepo) Close() {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
+
+	if sr.cancel != nil {
+		sr.cancel()
+		sr.cancel = nil
+	}
 
 	for _, snk := range sr.files {
 		snk.Close()
